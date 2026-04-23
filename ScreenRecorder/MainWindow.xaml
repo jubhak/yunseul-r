@@ -276,7 +276,7 @@
                                 <TextBlock Text="▲ 상" Foreground="{StaticResource FgBrush}" FontFamily="Segoe UI" 
                                            FontSize="11" HorizontalAlignment="Center" Margin="0,0,0,2"/>
                                 <TextBox x:Name="txtCropTop" Style="{StaticResource CropInput}" Text="0" 
-                                         PreviewTextInput="CropInput_PreviewTextInput" LostFocus="CropInput_LostFocus"/>
+                                         PreviewTextInput="CropInput_PreviewTextInput" LostFocus="CropInput_LostFocus" GotFocus="CropInput_GotFocus"/>
                             </StackPanel>
 
                             <!-- 좌 -->
@@ -284,7 +284,7 @@
                                 <TextBlock Text="◀ 좌" Foreground="{StaticResource FgBrush}" FontFamily="Segoe UI" 
                                            FontSize="11" HorizontalAlignment="Center" Margin="0,0,0,2"/>
                                 <TextBox x:Name="txtCropLeft" Style="{StaticResource CropInput}" Text="0"
-                                         PreviewTextInput="CropInput_PreviewTextInput" LostFocus="CropInput_LostFocus"/>
+                                         PreviewTextInput="CropInput_PreviewTextInput" LostFocus="CropInput_LostFocus" GotFocus="CropInput_GotFocus"/>
                             </StackPanel>
 
                             <!-- 중앙 아이콘 -->
@@ -298,13 +298,13 @@
                                 <TextBlock Text="우 ▶" Foreground="{StaticResource FgBrush}" FontFamily="Segoe UI" 
                                            FontSize="11" HorizontalAlignment="Center" Margin="0,0,0,2"/>
                                 <TextBox x:Name="txtCropRight" Style="{StaticResource CropInput}" Text="0"
-                                         PreviewTextInput="CropInput_PreviewTextInput" LostFocus="CropInput_LostFocus"/>
+                                         PreviewTextInput="CropInput_PreviewTextInput" LostFocus="CropInput_LostFocus" GotFocus="CropInput_GotFocus"/>
                             </StackPanel>
 
                             <!-- 하 -->
                             <StackPanel Grid.Row="2" Grid.Column="1" HorizontalAlignment="Center" Margin="0,4,0,0">
                                 <TextBox x:Name="txtCropBottom" Style="{StaticResource CropInput}" Text="0"
-                                         PreviewTextInput="CropInput_PreviewTextInput" LostFocus="CropInput_LostFocus"/>
+                                         PreviewTextInput="CropInput_PreviewTextInput" LostFocus="CropInput_LostFocus" GotFocus="CropInput_GotFocus"/>
                                 <TextBlock Text="▼ 하" Foreground="{StaticResource FgBrush}" FontFamily="Segoe UI" 
                                            FontSize="11" HorizontalAlignment="Center" Margin="0,2,0,0"/>
                             </StackPanel>

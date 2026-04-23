@@ -114,6 +114,11 @@ namespace ScreenRecorder
         private void CropInput_PreviewTextInput(object sender, TextCompositionEventArgs e)
         { e.Handled = !Regex.IsMatch(e.Text, @"^\d$"); }
         private void CropInput_LostFocus(object sender, RoutedEventArgs e) => SaveCropSettings();
+        private void CropInput_GotFocus(object sender, RoutedEventArgs e)
+        {
+            if (sender is TextBox tb)
+                tb.Dispatcher.BeginInvoke(new Action(() => tb.SelectAll()), System.Windows.Threading.DispatcherPriority.Input);
+        }
         private void CropInput_TextChanged(object sender, TextChangedEventArgs e)
         {
             // XAML 초기화 중에는 다른 TextBox가 아직 null일 수 있음
