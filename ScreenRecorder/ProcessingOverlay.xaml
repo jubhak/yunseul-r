@@ -1,0 +1,74 @@
+<Window x:Class="ScreenRecorder.ProcessingOverlay"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="처리 중"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        Topmost="True"
+        ShowInTaskbar="False"
+        ResizeMode="NoResize"
+        WindowStartupLocation="CenterScreen"
+        Width="180" Height="180">
+    <Grid>
+        <!-- 원형 배경 -->
+        <Ellipse Fill="#0d1117" Width="180" Height="180"/>
+        <Ellipse Stroke="#21262d" StrokeThickness="1" Width="180" Height="180"/>
+
+        <!-- 회전 링 1 (파랑) -->
+        <Canvas Width="180" Height="180">
+            <Path x:Name="ring1" Stroke="#58a6ff" StrokeThickness="2.5"
+                  StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                  RenderTransformOrigin="0.5,0.5">
+                <Path.Data>
+                    <PathGeometry>
+                        <PathFigure StartPoint="90,6" IsClosed="False">
+                            <ArcSegment Point="158,55" Size="84,84" SweepDirection="Clockwise"/>
+                        </PathFigure>
+                    </PathGeometry>
+                </Path.Data>
+                <Path.RenderTransform>
+                    <RotateTransform x:Name="ring1Rotate" CenterX="90" CenterY="90"/>
+                </Path.RenderTransform>
+            </Path>
+        </Canvas>
+
+        <!-- 회전 링 2 (보라) -->
+        <Canvas Width="180" Height="180">
+            <Path x:Name="ring2" Stroke="#bc8cff" StrokeThickness="2" Opacity="0.6"
+                  StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                  RenderTransformOrigin="0.5,0.5">
+                <Path.Data>
+                    <PathGeometry>
+                        <PathFigure StartPoint="90,10" IsClosed="False">
+                            <ArcSegment Point="145,45" Size="80,80" SweepDirection="Clockwise"/>
+                        </PathFigure>
+                    </PathGeometry>
+                </Path.Data>
+                <Path.RenderTransform>
+                    <RotateTransform x:Name="ring2Rotate" CenterX="90" CenterY="90"/>
+                </Path.RenderTransform>
+            </Path>
+        </Canvas>
+
+        <!-- 중앙 글로우 -->
+        <Ellipse Width="70" Height="70" HorizontalAlignment="Center" VerticalAlignment="Center">
+            <Ellipse.Fill>
+                <RadialGradientBrush>
+                    <GradientStop Color="#3058a6ff" Offset="0"/>
+                    <GradientStop Color="#00000000" Offset="1"/>
+                </RadialGradientBrush>
+            </Ellipse.Fill>
+        </Ellipse>
+
+        <!-- R 글자 -->
+        <TextBlock Text="Y" FontFamily="Consolas" FontSize="48" FontWeight="Bold"
+                   Foreground="#58a6ff" HorizontalAlignment="Center" VerticalAlignment="Center"
+                   Margin="0,-8,0,0" x:Name="txtLetter"/>
+
+        <!-- 상태 텍스트 -->
+        <TextBlock x:Name="txtProgress" Text="처리 중..." FontFamily="Segoe UI" FontSize="9"
+                   Foreground="#8b949e" HorizontalAlignment="Center" VerticalAlignment="Bottom"
+                   Margin="0,0,0,28"/>
+    </Grid>
+</Window>

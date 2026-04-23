@@ -1,0 +1,317 @@
+<Window x:Class="ScreenRecorder.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="YUNSEUL-R" Height="440" Width="800"
+        WindowStartupLocation="CenterScreen"
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent"
+        ResizeMode="NoResize" Topmost="True" ShowInTaskbar="True">
+
+    <Window.Resources>
+        <SolidColorBrush x:Key="BgBrush" Color="#0d1117"/>
+        <SolidColorBrush x:Key="CardBrush" Color="#161b22"/>
+        <SolidColorBrush x:Key="BorderBrush" Color="#21262d"/>
+        <SolidColorBrush x:Key="FgBrush" Color="#e6edf3"/>
+        <SolidColorBrush x:Key="Fg2Brush" Color="#8b949e"/>
+        <SolidColorBrush x:Key="BlueBrush" Color="#58a6ff"/>
+        <SolidColorBrush x:Key="GreenBrush" Color="#3fb950"/>
+        <SolidColorBrush x:Key="RedBrush" Color="#f85149"/>
+        <SolidColorBrush x:Key="CyanBrush" Color="#39d3f2"/>
+        <SolidColorBrush x:Key="OrangeBrush" Color="#ff7b54"/>
+
+        <!-- 툴바 버튼 (눈에 띄는 색) -->
+        <Style x:Key="ToolBtn" TargetType="Button">
+            <Setter Property="Background" Value="#2d333b"/>
+            <Setter Property="Foreground" Value="#e6edf3"/>
+            <Setter Property="BorderBrush" Value="#444c56"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="8,2"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bd" Background="{TemplateBinding Background}" 
+                                BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="3" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#3d444d"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.4"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- 녹화 버튼 -->
+        <Style x:Key="RecBtn" TargetType="Button">
+            <Setter Property="Foreground" Value="#e6edf3"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="12,6"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bd" Background="{TemplateBinding Background}" 
+                                CornerRadius="4" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Opacity" Value="0.85"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.4"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Crop 입력 스타일 -->
+        <Style x:Key="CropInput" TargetType="TextBox">
+            <Setter Property="Background" Value="#0d1117"/>
+            <Setter Property="Foreground" Value="#e6edf3"/>
+            <Setter Property="BorderBrush" Value="#444c56"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="FontFamily" Value="Consolas"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Padding" Value="4,2"/>
+            <Setter Property="Width" Value="42"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="CaretBrush" Value="#e6edf3"/>
+        </Style>
+    </Window.Resources>
+
+    <Border CornerRadius="8" Background="{StaticResource BgBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="26"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <!-- 타이틀바 (yunseul-s 스타일) -->
+            <Border Grid.Row="0" Background="#010409" CornerRadius="8,8,0,0" MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
+                <DockPanel>
+                    <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" Margin="0,2,2,0">
+                        <Label Content="  —  " Background="#2d333b" Foreground="{StaticResource FgBrush}"
+                               FontFamily="Consolas" FontSize="9" FontWeight="Bold"
+                               Cursor="Hand" VerticalAlignment="Top" Padding="0" Margin="0,0,2,0"
+                               MouseLeftButtonDown="BtnMinimize_MouseDown"/>
+                        <Label Content="  X  " Background="#6e1a1a" Foreground="{StaticResource FgBrush}"
+                               FontFamily="Consolas" FontSize="9" FontWeight="Bold"
+                               Cursor="Hand" VerticalAlignment="Top" Padding="0"
+                               MouseLeftButtonDown="BtnClose_MouseDown"/>
+                    </StackPanel>
+                    <TextBlock Text="  [▓]  YUNSEUL-R" Foreground="{StaticResource BlueBrush}" 
+                               FontFamily="Consolas" FontSize="9" FontWeight="Bold"
+                               VerticalAlignment="Center" Margin="0,0,0,0"/>
+                </DockPanel>
+            </Border>
+
+            <!-- 좌우 분할 -->
+            <Grid Grid.Row="1" Margin="6,6,6,6">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="6"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- ═══ 좌측 ═══ -->
+                <Grid Grid.Column="0">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- REC -->
+                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,2">
+                        <Rectangle Width="3" Height="12" Fill="{StaticResource RedBrush}" Margin="0,0,5,0"/>
+                        <TextBlock Text="REC" Foreground="{StaticResource RedBrush}" 
+                                   FontFamily="Segoe UI" FontSize="12" FontWeight="Bold"/>
+                    </StackPanel>
+
+                    <!-- 상태 카드 -->
+                    <Border Grid.Row="1" Background="{StaticResource CardBrush}" CornerRadius="4" Padding="10,8" Margin="0,0,0,5">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <TextBlock x:Name="txtStatus" Text="대기 중" Foreground="{StaticResource Fg2Brush}" 
+                                           FontFamily="Segoe UI" FontSize="11"/>
+                                <TextBlock x:Name="txtTimer" Text="00:00:00" Foreground="{StaticResource FgBrush}" 
+                                           FontFamily="Consolas" FontSize="22" FontWeight="Bold" Margin="0,2,0,0"/>
+                            </StackPanel>
+                            <Border Grid.Column="1" Background="{StaticResource BorderBrush}" CornerRadius="3" 
+                                    Padding="8,4" VerticalAlignment="Center">
+                                <TextBlock x:Name="txtIndicator" Text="IDLE" Foreground="{StaticResource Fg2Brush}" 
+                                           FontFamily="Consolas" FontSize="13" FontWeight="Bold"/>
+                            </Border>
+                        </Grid>
+                    </Border>
+
+                    <!-- TARGET + 툴바 -->
+                    <WrapPanel Grid.Row="2" Margin="0,0,0,2">
+                        <Rectangle Width="3" Height="12" Fill="{StaticResource CyanBrush}" Margin="0,2,5,0"/>
+                        <TextBlock Text="TARGET" Foreground="{StaticResource CyanBrush}" 
+                                   FontFamily="Segoe UI" FontSize="12" FontWeight="Bold" VerticalAlignment="Center"/>
+                        <Button x:Name="btnRefresh" Content="↻ 새로고침" Style="{StaticResource ToolBtn}" Margin="8,0,0,0" Click="BtnRefresh_Click"/>
+                        <Button x:Name="btnMode" Content="앱 전용" Style="{StaticResource ToolBtn}" Margin="4,0,0,0" Click="BtnMode_Click"/>
+                        <Button x:Name="btnOpenFolder" Content="📂 녹화파일" Style="{StaticResource ToolBtn}" Margin="4,0,0,0" Click="BtnOpenFolder_Click"/>
+                    </WrapPanel>
+
+                    <!-- 프로세스 목록 -->
+                    <Border Grid.Row="3" Background="{StaticResource CardBrush}" CornerRadius="4" Padding="4" Margin="0,0,0,5">
+                        <ListBox x:Name="lstWindows" Background="Transparent" BorderThickness="0"
+                                 Foreground="{StaticResource FgBrush}" FontFamily="Segoe UI" FontSize="11"
+                                 SelectionChanged="LstWindows_SelectionChanged">
+                            <ListBox.Resources>
+                                <Style TargetType="ListBoxItem">
+                                    <Setter Property="Padding" Value="6,3"/>
+                                    <Setter Property="Cursor" Value="Hand"/>
+                                    <Setter Property="Template">
+                                        <Setter.Value>
+                                            <ControlTemplate TargetType="ListBoxItem">
+                                                <Border x:Name="bd" Background="Transparent" CornerRadius="3" Padding="{TemplateBinding Padding}">
+                                                    <ContentPresenter/>
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="bd" Property="Background" Value="#21262d"/>
+                                                    </Trigger>
+                                                    <Trigger Property="IsSelected" Value="True">
+                                                        <Setter TargetName="bd" Property="Background" Value="#1a3a5c"/>
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Setter.Value>
+                                    </Setter>
+                                </Style>
+                            </ListBox.Resources>
+                        </ListBox>
+                    </Border>
+
+                    <!-- 녹화 버튼 (하나로 통합) -->
+                    <Button Grid.Row="4" x:Name="btnRecord" Content="⏺  녹화 시작" 
+                            Style="{StaticResource RecBtn}" Height="40" Background="#6e2020"
+                            IsEnabled="False" Click="BtnRecord_Click"/>
+
+                    <!-- FFmpeg -->
+                    <TextBlock Grid.Row="5" x:Name="txtFfmpegPath" Text="" FontSize="9" 
+                               Foreground="{StaticResource Fg2Brush}" FontFamily="Consolas"
+                               HorizontalAlignment="Center" Margin="0,4,0,2" TextWrapping="Wrap" TextAlignment="Center"/>
+                </Grid>
+
+                <!-- 구분선 -->
+                <Rectangle Grid.Column="1" Width="1" Fill="{StaticResource BorderBrush}" Margin="2,0"/>
+
+                <!-- ═══ 우측 ═══ -->
+                <Grid Grid.Column="2">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- PREVIEW -->
+                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,2">
+                        <Rectangle Width="3" Height="12" Fill="{StaticResource GreenBrush}" Margin="0,0,5,0"/>
+                        <TextBlock Text="PREVIEW" Foreground="{StaticResource GreenBrush}" 
+                                   FontFamily="Segoe UI" FontSize="12" FontWeight="Bold"/>
+                    </StackPanel>
+
+                    <!-- 미리보기 (상단 정렬) -->
+                    <Border Grid.Row="1" Background="{StaticResource CardBrush}" CornerRadius="4">
+                        <Grid>
+                            <Image x:Name="imgPreview" Stretch="Uniform" VerticalAlignment="Top"
+                                   RenderOptions.BitmapScalingMode="Fant"/>
+                            <TextBlock x:Name="txtPreviewHint" Text="앱을 선택하면&#x0a;미리보기가 표시됩니다"
+                                       Foreground="{StaticResource Fg2Brush}" FontFamily="Segoe UI" FontSize="12"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center"
+                                       TextAlignment="Center" LineHeight="20"/>
+                        </Grid>
+                    </Border>
+
+                    <!-- SCREEN CROP -->
+                    <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,6,0,2">
+                        <Rectangle Width="3" Height="12" Fill="{StaticResource OrangeBrush}" Margin="0,0,5,0"/>
+                        <TextBlock Text="SCREEN CROP" Foreground="{StaticResource OrangeBrush}" 
+                                   FontFamily="Segoe UI" FontSize="12" FontWeight="Bold"/>
+                        <TextBlock Text="  (px)" Foreground="{StaticResource Fg2Brush}" 
+                                   FontFamily="Segoe UI" FontSize="10" VerticalAlignment="Center"/>
+                    </StackPanel>
+
+                    <!-- Crop 입력 -->
+                    <Border Grid.Row="3" Background="{StaticResource CardBrush}" CornerRadius="4" Padding="12,10">
+                        <Grid HorizontalAlignment="Center">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <!-- 상 -->
+                            <StackPanel Grid.Row="0" Grid.Column="1" HorizontalAlignment="Center" Margin="0,0,0,4">
+                                <TextBlock Text="▲ 상" Foreground="{StaticResource FgBrush}" FontFamily="Segoe UI" 
+                                           FontSize="11" HorizontalAlignment="Center" Margin="0,0,0,2"/>
+                                <TextBox x:Name="txtCropTop" Style="{StaticResource CropInput}" Text="0" 
+                                         PreviewTextInput="CropInput_PreviewTextInput" LostFocus="CropInput_LostFocus"/>
+                            </StackPanel>
+
+                            <!-- 좌 -->
+                            <StackPanel Grid.Row="1" Grid.Column="0" VerticalAlignment="Center" Margin="0,0,8,0">
+                                <TextBlock Text="◀ 좌" Foreground="{StaticResource FgBrush}" FontFamily="Segoe UI" 
+                                           FontSize="11" HorizontalAlignment="Center" Margin="0,0,0,2"/>
+                                <TextBox x:Name="txtCropLeft" Style="{StaticResource CropInput}" Text="0"
+                                         PreviewTextInput="CropInput_PreviewTextInput" LostFocus="CropInput_LostFocus"/>
+                            </StackPanel>
+
+                            <!-- 중앙 아이콘 -->
+                            <Border Grid.Row="1" Grid.Column="1" Background="{StaticResource BorderBrush}" 
+                                    CornerRadius="4" Width="50" Height="34" Margin="0,2">
+                                <TextBlock Text="🖥" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+
+                            <!-- 우 -->
+                            <StackPanel Grid.Row="1" Grid.Column="2" VerticalAlignment="Center" Margin="8,0,0,0">
+                                <TextBlock Text="우 ▶" Foreground="{StaticResource FgBrush}" FontFamily="Segoe UI" 
+                                           FontSize="11" HorizontalAlignment="Center" Margin="0,0,0,2"/>
+                                <TextBox x:Name="txtCropRight" Style="{StaticResource CropInput}" Text="0"
+                                         PreviewTextInput="CropInput_PreviewTextInput" LostFocus="CropInput_LostFocus"/>
+                            </StackPanel>
+
+                            <!-- 하 -->
+                            <StackPanel Grid.Row="2" Grid.Column="1" HorizontalAlignment="Center" Margin="0,4,0,0">
+                                <TextBox x:Name="txtCropBottom" Style="{StaticResource CropInput}" Text="0"
+                                         PreviewTextInput="CropInput_PreviewTextInput" LostFocus="CropInput_LostFocus"/>
+                                <TextBlock Text="▼ 하" Foreground="{StaticResource FgBrush}" FontFamily="Segoe UI" 
+                                           FontSize="11" HorizontalAlignment="Center" Margin="0,2,0,0"/>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+                </Grid>
+            </Grid>
+        </Grid>
+    </Border>
+</Window>
