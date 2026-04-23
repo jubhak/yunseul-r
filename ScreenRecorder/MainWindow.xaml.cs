@@ -94,6 +94,31 @@ namespace ScreenRecorder
             System.Diagnostics.Process.Start("explorer.exe", dir);
         }
 
+        // ── 미리보기 토글 ──
+        private bool _previewVisible = true;
+        private void BtnPreviewToggle_Click(object sender, RoutedEventArgs e)
+        {
+            _previewVisible = !_previewVisible;
+            ApplyPreviewVisibility();
+        }
+        private void ApplyPreviewVisibility()
+        {
+            if (_previewVisible)
+            {
+                panelPreview.Visibility = Visibility.Visible;
+                divider.Visibility = Visibility.Visible;
+                Width = 800;
+                btnPreviewToggle.Content = "👁 미리보기";
+            }
+            else
+            {
+                panelPreview.Visibility = Visibility.Collapsed;
+                divider.Visibility = Visibility.Collapsed;
+                Width = 400;
+                btnPreviewToggle.Content = "👁 미리보기 ▸";
+            }
+        }
+
         // ── Crop 설정 ──
         private void LoadCropSettings()
         {
@@ -230,6 +255,10 @@ namespace ScreenRecorder
             if (_captureMode == Models.CaptureMode.Region)
                 WindowState = WindowState.Minimized;
 
+            // 녹화 시작 시 미리보기 숨기기
+            _previewVisible = false;
+            ApplyPreviewVisibility();
+
             var modeLabel = _captureMode == Models.CaptureMode.AppOnly ? "앱 전용" : "영역";
             txtStatus.Text = $"녹화 시작 중... ({target.ProcessName})";
             txtIndicator.Text = "INIT";
@@ -332,6 +361,11 @@ namespace ScreenRecorder
             txtIndicator.Text = "IDLE";
             txtIndicator.Foreground = (SolidColorBrush)FindResource("Fg2Brush");
             btnRecord.IsEnabled = _selectedWindow != null;
+
+            // 미리보기 복원
+            _previewVisible = true;
+            ApplyPreviewVisibility();
+
             RefreshWindowList();
         }
 

@@ -173,6 +173,7 @@
                         <Button x:Name="btnRefresh" Content="↻ 새로고침" Style="{StaticResource ToolBtn}" Margin="8,0,0,0" Click="BtnRefresh_Click"/>
                         <Button x:Name="btnMode" Content="앱 전용" Style="{StaticResource ToolBtn}" Margin="4,0,0,0" Click="BtnMode_Click"/>
                         <Button x:Name="btnOpenFolder" Content="📂 녹화파일" Style="{StaticResource ToolBtn}" Margin="4,0,0,0" Click="BtnOpenFolder_Click"/>
+                        <Button x:Name="btnPreviewToggle" Content="👁 미리보기" Style="{StaticResource ToolBtn}" Margin="4,0,0,0" Click="BtnPreviewToggle_Click"/>
                     </WrapPanel>
 
                     <!-- 프로세스 목록 -->
@@ -218,10 +219,10 @@
                 </Grid>
 
                 <!-- 구분선 -->
-                <Rectangle Grid.Column="1" Width="1" Fill="{StaticResource BorderBrush}" Margin="2,0"/>
+                <Rectangle x:Name="divider" Grid.Column="1" Width="1" Fill="{StaticResource BorderBrush}" Margin="2,0"/>
 
                 <!-- ═══ 우측 ═══ -->
-                <Grid Grid.Column="2">
+                <Grid x:Name="panelPreview" Grid.Column="2">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
