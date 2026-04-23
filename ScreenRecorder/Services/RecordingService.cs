@@ -242,7 +242,7 @@ namespace ScreenRecorder.Services
             string audioFmt = (fmt.Encoding == NAudio.Wave.WaveFormatEncoding.IeeeFloat || fmt.BitsPerSample == 32)
                 ? "f32le" : (fmt.BitsPerSample == 16 ? "s16le" : "f32le");
             var escaped = windowTitle.Replace("\"", "\\\"");
-            var vf = !string.IsNullOrEmpty(cropFilter) ? $"-vf \"{cropFilter}\" " : "";
+            var vf = BuildVfFilter(cropFilter);
 
             return $"-f gdigrab -framerate 30 -thread_queue_size 1024 " +
                    $"-i title=\"{escaped}\" " +
@@ -260,7 +260,7 @@ namespace ScreenRecorder.Services
         private string BuildArgsTitleVideoOnly(string windowTitle, string outputPath, string cropFilter)
         {
             var escaped = windowTitle.Replace("\"", "\\\"");
-            var vf = !string.IsNullOrEmpty(cropFilter) ? $"-vf \"{cropFilter}\" " : "";
+            var vf = BuildVfFilter(cropFilter);
 
             return $"-f gdigrab -framerate 30 -thread_queue_size 1024 " +
                    $"-i title=\"{escaped}\" " +
@@ -276,7 +276,7 @@ namespace ScreenRecorder.Services
         {
             string audioFmt = (fmt.Encoding == NAudio.Wave.WaveFormatEncoding.IeeeFloat || fmt.BitsPerSample == 32)
                 ? "f32le" : (fmt.BitsPerSample == 16 ? "s16le" : "f32le");
-            var vf = !string.IsNullOrEmpty(cropFilter) ? $"-vf \"{cropFilter}\" " : "";
+            var vf = BuildVfFilter(cropFilter);
 
             return $"-f gdigrab -framerate 30 -thread_queue_size 1024 " +
                    $"-offset_x {x} -offset_y {y} -video_size {w}x{h} " +
@@ -294,7 +294,7 @@ namespace ScreenRecorder.Services
 
         private string BuildArgsRegionVideoOnly(int x, int y, int w, int h, string outputPath, string cropFilter)
         {
-            var vf = !string.IsNullOrEmpty(cropFilter) ? $"-vf \"{cropFilter}\" " : "";
+            var vf = BuildVfFilter(cropFilter);
 
             return $"-f gdigrab -framerate 30 -thread_queue_size 1024 " +
                    $"-offset_x {x} -offset_y {y} -video_size {w}x{h} " +
@@ -304,6 +304,20 @@ namespace ScreenRecorder.Services
                    $"-g 30 -keyint_min 30 -sc_threshold 0 -pix_fmt yuv420p " +
                    $"-movflags +faststart " +
                    $"-y \"{outputPath}\"";
+        }
+
+        /// <summary>
+        /// -vf 필터 문자열 구성. crop + 항상 짝수 보정 포함.
+        /// </summary>
+        private string BuildVfFilter(string cropFilter)
+        {
+            // 짝수 보정: crop 후에도 홀수가 될 수 있으므로 항상 마지막에 적용
+            const string evenFix = "crop=trunc(iw/2)*2:trunc(ih/2)*2";
+
+            if (!string.IsNullOrEmpty(cropFilter))
+                return $"-vf \"{cropFilter},{evenFix}\" ";
+            else
+                return $"-vf \"{evenFix}\" ";
         }
 
         // ── 오디오 Named Pipe ──
