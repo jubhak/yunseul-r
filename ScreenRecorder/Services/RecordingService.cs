@@ -1,40 +1,31 @@
 using ScreenRecorder.Models;
 using System.Diagnostics;
 using System.IO;
-using System.IO.Pipes;
 using System.Runtime.InteropServices;
 using System.Text;
 
 namespace ScreenRecorder.Services
 {
     /// <summary>
-    /// FFmpeg gdigrab title= + NAudio WASAPI Named Pipe 동시 녹화 서비스
+    /// FFmpeg gdigrab + NAudio WAV 녹화 서비스
     /// 
     /// 방식:
-    /// - gdigrab title="윈도우타이틀"로 해당 앱만 캡처 (다른 창에 가려져도 해당 앱만 녹화)
-    /// - NAudio WASAPI Loopback → Named Pipe → FFmpeg 오디오 입력
-    /// - FFmpeg 하나가 비디오+오디오를 동시에 받아 MP4로 바로 인코딩
-    /// - -movflags +faststart로 후처리 없이 즉시 완료
+    /// - FFmpeg gdigrab으로 비디오를 직접 MP4에 녹화 (안정적, 장시간 OK)
+    /// - NAudio WASAPI Loopback으로 오디오를 WAV 파일에 저장
+    /// - 녹화 종료 후 -c:v copy -c:a aac로 빠르게 mux (비디오 재인코딩 없음)
+    /// - 수 GB 파일도 mux는 수초 이내
     /// 
-    /// 참고: GPU 가속 앱(Edge, Chrome)은 gdigrab title= 방식에서 검정 화면이 될 수 있음.
-    /// 이 경우 해당 앱의 설정에서 하드웨어 가속을 끄면 해결됨.
-    /// 
-    /// 시작 순서:
-    /// 1) Named Pipe 서버 생성
-    /// 2) FFmpeg 시작 (gdigrab title= + pipe 입력)
-    /// 3) FFmpeg가 pipe에 연결되면 NAudio 오디오 캡처 시작
+    /// 이전 Named Pipe 방식은 장시간 녹화 시 파이프 끊김으로 비디오도 멈추는 문제가 있었음.
     /// </summary>
     public class RecordingService : IDisposable
     {
         private Process? _ffmpegProcess;
         private NAudio.Wave.WasapiLoopbackCapture? _audioCapture;
-        private NamedPipeServerStream? _audioPipe;
-        private Thread? _audioPipeThread;
-        private volatile bool _stopAudioPipe;
+        private NAudio.Wave.WaveFileWriter? _audioWriter;
+        private string? _tempAudioPath;
         private bool _isRecording;
         private string? _outputPath;
         private bool _hasAudio;
-        private string? _audioPipeName;
         private readonly StringBuilder _ffmpegLog = new();
         private bool _disposed;
 
@@ -120,7 +111,6 @@ namespace ScreenRecorder.Services
             if (!IsWindow(target.Handle))
                 throw new InvalidOperationException("선택한 윈도우가 더 이상 존재하지 않습니다.");
 
-            // 모드에 따라 캡처 대상 정보 준비
             string? windowTitle = null;
             int wx = 0, wy = 0, ww = 0, wh = 0;
 
@@ -130,7 +120,7 @@ namespace ScreenRecorder.Services
                 if (string.IsNullOrEmpty(windowTitle))
                     throw new InvalidOperationException("윈도우 타이틀을 가져올 수 없습니다.");
             }
-            else // Region
+            else
             {
                 if (!GetWindowBounds(target.Handle, out wx, out wy, out ww, out wh))
                     throw new InvalidOperationException("윈도우 크기를 가져올 수 없습니다.");
@@ -138,53 +128,20 @@ namespace ScreenRecorder.Services
 
             _outputPath = FileNameService.GetOutputFilePath();
 
-            // 오디오 포맷 확인
-            _hasAudio = false;
-            NAudio.Wave.WaveFormat? audioFormat = null;
-            try
-            {
-                var test = new NAudio.Wave.WasapiLoopbackCapture();
-                audioFormat = test.WaveFormat;
-                test.Dispose();
-                _hasAudio = true;
-            }
-            catch { }
+            // 1) 오디오 캡처 시작 (WAV 파일)
+            _hasAudio = StartAudioCapture();
 
-            _audioPipeName = $"screenrec_{Guid.NewGuid():N}";
-
-            // ── 시작 순서 ──
-
-            // 1) Named Pipe 서버 생성
-            if (_hasAudio && audioFormat != null)
-            {
-                StartAudioPipeServer(audioFormat);
-                await Task.Delay(300);
-            }
-
-            // crop 필터 문자열 (값이 있을 때만)
+            // 2) crop 필터
             string cropFilter = "";
             if (cropTop > 0 || cropRight > 0 || cropBottom > 0 || cropLeft > 0)
-            {
-                // crop=in_w-left-right:in_h-top-bottom:left:top
                 cropFilter = $"crop=in_w-{cropLeft}-{cropRight}:in_h-{cropTop}-{cropBottom}:{cropLeft}:{cropTop}";
-            }
 
-            // 2) FFmpeg 인자 구성 + 시작
+            // 3) FFmpeg 인자 — 비디오만 (오디오는 종료 후 mux)
             string args;
-            if (_hasAudio && audioFormat != null)
-            {
-                if (mode == CaptureMode.AppOnly)
-                    args = BuildArgsTitleWithAudio(windowTitle!, audioFormat, _audioPipeName, _outputPath, cropFilter);
-                else
-                    args = BuildArgsRegionWithAudio(wx, wy, ww, wh, audioFormat, _audioPipeName, _outputPath, cropFilter);
-            }
+            if (mode == CaptureMode.AppOnly)
+                args = BuildArgsTitle(windowTitle!, _outputPath, cropFilter);
             else
-            {
-                if (mode == CaptureMode.AppOnly)
-                    args = BuildArgsTitleVideoOnly(windowTitle!, _outputPath, cropFilter);
-                else
-                    args = BuildArgsRegionVideoOnly(wx, wy, ww, wh, _outputPath, cropFilter);
-            }
+                args = BuildArgsRegion(wx, wy, ww, wh, _outputPath, cropFilter);
 
             _ffmpegLog.Clear();
             _ffmpegProcess = new Process
@@ -215,10 +172,10 @@ namespace ScreenRecorder.Services
 
                 if (_ffmpegProcess.HasExited)
                 {
-                    StopAudioPipe();
-                    var modeInfo = mode == CaptureMode.AppOnly ? $"타이틀: {windowTitle}" : $"영역: {wx},{wy} {ww}x{wh}";
+                    StopAudioCapture();
+                    var info = mode == CaptureMode.AppOnly ? $"타이틀: {windowTitle}" : $"영역: {wx},{wy} {ww}x{wh}";
                     throw new InvalidOperationException(
-                        $"FFmpeg 시작 실패.\n\n{modeInfo}\n\nFFmpeg 로그:\n{_ffmpegLog}");
+                        $"FFmpeg 시작 실패.\n\n{info}\n\nFFmpeg 로그:\n{_ffmpegLog}");
                 }
 
                 _isRecording = true;
@@ -227,37 +184,16 @@ namespace ScreenRecorder.Services
             catch (InvalidOperationException) { throw; }
             catch (Exception ex)
             {
-                StopAudioPipe();
+                StopAudioCapture();
                 _ffmpegProcess?.Dispose();
                 _ffmpegProcess = null;
                 throw new InvalidOperationException($"녹화 시작 실패: {ex.Message}", ex);
             }
         }
 
-        // ── FFmpeg 인자 구성 ──
+        // ── FFmpeg 인자 (비디오만) ──
 
-        private string BuildArgsTitleWithAudio(string windowTitle,
-            NAudio.Wave.WaveFormat fmt, string pipeName, string outputPath, string cropFilter)
-        {
-            string audioFmt = (fmt.Encoding == NAudio.Wave.WaveFormatEncoding.IeeeFloat || fmt.BitsPerSample == 32)
-                ? "f32le" : (fmt.BitsPerSample == 16 ? "s16le" : "f32le");
-            var escaped = windowTitle.Replace("\"", "\\\"");
-            var vf = BuildVfFilter(cropFilter);
-
-            return $"-f gdigrab -framerate 30 -thread_queue_size 1024 " +
-                   $"-i title=\"{escaped}\" " +
-                   $"-f {audioFmt} -ar {fmt.SampleRate} -ac {fmt.Channels} " +
-                   $"-thread_queue_size 1024 " +
-                   $"-i \"\\\\.\\pipe\\{pipeName}\" " +
-                   $"{vf}" +
-                   $"-c:v libx264 -preset ultrafast -crf 20 " +
-                   $"-g 30 -keyint_min 30 -sc_threshold 0 -pix_fmt yuv420p " +
-                   $"-c:a aac -b:a 192k " +
-                   $"-movflags +faststart " +
-                   $"-y \"{outputPath}\"";
-        }
-
-        private string BuildArgsTitleVideoOnly(string windowTitle, string outputPath, string cropFilter)
+        private string BuildArgsTitle(string windowTitle, string outputPath, string cropFilter)
         {
             var escaped = windowTitle.Replace("\"", "\\\"");
             var vf = BuildVfFilter(cropFilter);
@@ -271,28 +207,7 @@ namespace ScreenRecorder.Services
                    $"-y \"{outputPath}\"";
         }
 
-        private string BuildArgsRegionWithAudio(int x, int y, int w, int h,
-            NAudio.Wave.WaveFormat fmt, string pipeName, string outputPath, string cropFilter)
-        {
-            string audioFmt = (fmt.Encoding == NAudio.Wave.WaveFormatEncoding.IeeeFloat || fmt.BitsPerSample == 32)
-                ? "f32le" : (fmt.BitsPerSample == 16 ? "s16le" : "f32le");
-            var vf = BuildVfFilter(cropFilter);
-
-            return $"-f gdigrab -framerate 30 -thread_queue_size 1024 " +
-                   $"-offset_x {x} -offset_y {y} -video_size {w}x{h} " +
-                   $"-i desktop " +
-                   $"-f {audioFmt} -ar {fmt.SampleRate} -ac {fmt.Channels} " +
-                   $"-thread_queue_size 1024 " +
-                   $"-i \"\\\\.\\pipe\\{pipeName}\" " +
-                   $"{vf}" +
-                   $"-c:v libx264 -preset ultrafast -crf 20 " +
-                   $"-g 30 -keyint_min 30 -sc_threshold 0 -pix_fmt yuv420p " +
-                   $"-c:a aac -b:a 192k " +
-                   $"-movflags +faststart " +
-                   $"-y \"{outputPath}\"";
-        }
-
-        private string BuildArgsRegionVideoOnly(int x, int y, int w, int h, string outputPath, string cropFilter)
+        private string BuildArgsRegion(int x, int y, int w, int h, string outputPath, string cropFilter)
         {
             var vf = BuildVfFilter(cropFilter);
 
@@ -306,83 +221,49 @@ namespace ScreenRecorder.Services
                    $"-y \"{outputPath}\"";
         }
 
-        /// <summary>
-        /// -vf 필터 문자열 구성. crop + 항상 짝수 보정 포함.
-        /// </summary>
         private string BuildVfFilter(string cropFilter)
         {
-            // 짝수 보정: crop 후에도 홀수가 될 수 있으므로 항상 마지막에 적용
             const string evenFix = "crop=trunc(iw/2)*2:trunc(ih/2)*2";
-
             if (!string.IsNullOrEmpty(cropFilter))
                 return $"-vf \"{cropFilter},{evenFix}\" ";
             else
                 return $"-vf \"{evenFix}\" ";
         }
 
-        // ── 오디오 Named Pipe ──
+        // ── 오디오 (WAV 파일) ──
 
-        private void StartAudioPipeServer(NAudio.Wave.WaveFormat format)
+        private bool StartAudioCapture()
         {
-            _stopAudioPipe = false;
-
-            _audioPipeThread = new Thread(() =>
+            try
             {
-                NamedPipeServerStream? pipe = null;
-                NAudio.Wave.WasapiLoopbackCapture? capture = null;
+                _tempAudioPath = Path.Combine(Path.GetTempPath(), $"screenrec_{Guid.NewGuid():N}.wav");
+                _audioCapture = new NAudio.Wave.WasapiLoopbackCapture();
+                _audioWriter = new NAudio.Wave.WaveFileWriter(_tempAudioPath, _audioCapture.WaveFormat);
 
-                try
+                _audioCapture.DataAvailable += (s, e) =>
                 {
-                    pipe = new NamedPipeServerStream(
-                        _audioPipeName!, PipeDirection.Out, 1,
-                        PipeTransmissionMode.Byte, PipeOptions.WriteThrough,
-                        0, 1024 * 1024);
-                    _audioPipe = pipe;
-
-                    var cts = new CancellationTokenSource(15000);
-                    try { pipe.WaitForConnectionAsync(cts.Token).Wait(); }
-                    catch { pipe.Dispose(); _audioPipe = null; return; }
-
-                    if (_stopAudioPipe) return;
-
-                    capture = new NAudio.Wave.WasapiLoopbackCapture();
-                    _audioCapture = capture;
-
-                    capture.DataAvailable += (s, e) =>
-                    {
-                        if (_stopAudioPipe || pipe == null || !pipe.IsConnected) return;
-                        try { pipe.Write(e.Buffer, 0, e.BytesRecorded); }
-                        catch { _stopAudioPipe = true; }
-                    };
-
-                    capture.StartRecording();
-
-                    while (!_stopAudioPipe) Thread.Sleep(50);
-                    capture.StopRecording();
-                }
-                catch { }
-                finally
+                    try { _audioWriter?.Write(e.Buffer, 0, e.BytesRecorded); } catch { }
+                };
+                _audioCapture.RecordingStopped += (s, e) =>
                 {
-                    try { capture?.Dispose(); } catch { }
-                    try { pipe?.Dispose(); } catch { }
-                    _audioCapture = null;
-                    _audioPipe = null;
-                }
-            })
-            { IsBackground = true, Name = "AudioPipe" };
-
-            _audioPipeThread.Start();
+                    try { _audioWriter?.Dispose(); _audioWriter = null; } catch { }
+                };
+                _audioCapture.StartRecording();
+                return true;
+            }
+            catch
+            {
+                StopAudioCapture();
+                _tempAudioPath = null;
+                return false;
+            }
         }
 
-        private void StopAudioPipe()
+        private void StopAudioCapture()
         {
-            _stopAudioPipe = true;
             try { _audioCapture?.StopRecording(); } catch { }
-            try { _audioPipe?.Dispose(); } catch { }
-            _audioPipeThread?.Join(5000);
-            _audioPipeThread = null;
-            _audioCapture = null;
-            _audioPipe = null;
+            try { _audioWriter?.Dispose(); _audioWriter = null; } catch { }
+            try { _audioCapture?.Dispose(); _audioCapture = null; } catch { }
         }
 
         // ── 녹화 중지 ──
@@ -393,6 +274,7 @@ namespace ScreenRecorder.Services
 
             try
             {
+                // 1) FFmpeg 정상 종료
                 progressCallback?.Invoke("녹화 종료 중...");
                 if (!_ffmpegProcess.HasExited)
                 {
@@ -402,17 +284,26 @@ namespace ScreenRecorder.Services
                         _ffmpegProcess.StandardInput.Flush();
                     }
                     catch { }
+
+                    bool exited = await Task.Run(() => _ffmpegProcess.WaitForExit(30000));
+                    if (!exited)
+                    {
+                        try { _ffmpegProcess.Kill(); } catch { }
+                        await Task.Run(() => _ffmpegProcess.WaitForExit(5000));
+                    }
                 }
 
-                progressCallback?.Invoke("오디오 종료 중...");
-                StopAudioPipe();
+                // 2) 오디오 캡처 중지
+                progressCallback?.Invoke("오디오 처리 중...");
+                StopAudioCapture();
 
-                progressCallback?.Invoke("파일 마무리 중...");
-                bool exited = await Task.Run(() => _ffmpegProcess.WaitForExit(30000));
-                if (!exited)
+                // 3) 오디오 mux (-c:v copy로 비디오 재인코딩 없이 빠르게)
+                if (_hasAudio && _outputPath != null && _tempAudioPath != null
+                    && File.Exists(_outputPath) && new FileInfo(_outputPath).Length > 0
+                    && File.Exists(_tempAudioPath) && new FileInfo(_tempAudioPath).Length > 44)
                 {
-                    try { _ffmpegProcess.Kill(); } catch { }
-                    await Task.Run(() => _ffmpegProcess.WaitForExit(5000));
+                    progressCallback?.Invoke("오디오 합치는 중...");
+                    await MuxAudioAsync(_outputPath, _tempAudioPath);
                 }
 
                 progressCallback?.Invoke("완료!");
@@ -423,14 +314,59 @@ namespace ScreenRecorder.Services
                 _isRecording = false;
                 _ffmpegProcess?.Dispose();
                 _ffmpegProcess = null;
+                CleanupTempFile(_tempAudioPath);
+                _tempAudioPath = null;
             }
+        }
+
+        /// <summary>
+        /// -c:v copy로 비디오 재인코딩 없이 오디오만 인코딩하여 합침.
+        /// 7시간 녹화 파일도 수초~수십초면 완료.
+        /// </summary>
+        private async Task MuxAudioAsync(string videoPath, string audioPath)
+        {
+            var ffmpegPath = FindFfmpeg();
+            if (ffmpegPath == null) return;
+
+            var tmp = videoPath + ".tmp.mp4";
+            var args = $"-i \"{videoPath}\" -i \"{audioPath}\" " +
+                       $"-c:v copy -c:a aac -b:a 192k " +
+                       $"-movflags +faststart -shortest " +
+                       $"-y \"{tmp}\"";
+            try
+            {
+                using var proc = new Process
+                {
+                    StartInfo = new ProcessStartInfo
+                    {
+                        FileName = ffmpegPath, Arguments = args,
+                        UseShellExecute = false, CreateNoWindow = true,
+                        RedirectStandardError = true
+                    }
+                };
+                proc.Start();
+                // 장시간 녹화 파일도 -c:v copy라 빠름. 넉넉히 5분 대기.
+                bool ok = await Task.Run(() => proc.WaitForExit(300000));
+                if (!ok) { try { proc.Kill(); } catch { } }
+
+                if (File.Exists(tmp) && new FileInfo(tmp).Length > 0)
+                { File.Delete(videoPath); File.Move(tmp, videoPath); }
+                else { CleanupTempFile(tmp); }
+            }
+            catch { CleanupTempFile(tmp); }
+        }
+
+        private void CleanupTempFile(string? p)
+        {
+            if (p == null) return;
+            try { if (File.Exists(p)) File.Delete(p); } catch { }
         }
 
         public void Dispose()
         {
             if (_disposed) return;
             _disposed = true;
-            StopAudioPipe();
+            StopAudioCapture();
             if (_ffmpegProcess != null)
             {
                 if (!_ffmpegProcess.HasExited)
