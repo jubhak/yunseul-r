@@ -1,7 +1,7 @@
 <Window x:Class="ScreenRecorder.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="YUNSEUL-R" Height="440" Width="800"
+        Title="YUNSEUL-R" Height="440" Width="900"
         WindowStartupLocation="CenterScreen"
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
         ResizeMode="NoResize" Topmost="True" ShowInTaskbar="True">
@@ -121,7 +121,7 @@
             <!-- 좌우 분할 -->
             <Grid Grid.Row="1" Margin="6,6,6,6">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="388"/>
+                    <ColumnDefinition Width="438"/>
                     <ColumnDefinition x:Name="colDivider" Width="6"/>
                     <ColumnDefinition x:Name="colPreview" Width="*"/>
                 </Grid.ColumnDefinitions>

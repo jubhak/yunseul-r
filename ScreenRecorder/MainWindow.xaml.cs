@@ -126,7 +126,7 @@ namespace ScreenRecorder
                 divider.Visibility = Visibility.Visible;
                 colDivider.Width = new GridLength(6);
                 colPreview.Width = new GridLength(1, GridUnitType.Star);
-                Width = 800;
+                Width = 900;
                 btnPreviewToggle.Content = "👁 미리보기";
             }
             else
@@ -135,7 +135,7 @@ namespace ScreenRecorder
                 divider.Visibility = Visibility.Collapsed;
                 colDivider.Width = new GridLength(0);
                 colPreview.Width = new GridLength(0);
-                Width = 400;
+                Width = 450;
                 btnPreviewToggle.Content = "👁 미리보기 ▸";
             }
         }
