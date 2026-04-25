@@ -121,9 +121,9 @@
             <!-- 좌우 분할 -->
             <Grid Grid.Row="1" Margin="6,6,6,6">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="438"/>
+                    <ColumnDefinition Width="*"/>
                     <ColumnDefinition x:Name="colDivider" Width="6"/>
-                    <ColumnDefinition x:Name="colPreview" Width="*"/>
+                    <ColumnDefinition x:Name="colPreview" Width="400"/>
                 </Grid.ColumnDefinitions>
 
                 <!-- ═══ 좌측 ═══ -->
