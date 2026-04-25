@@ -23,7 +23,7 @@ namespace ScreenRecorder
         private DateTime _recordingStartTime;
         private List<WindowInfo> _windows = new();
         private WindowInfo? _selectedWindow;
-        private Models.CaptureMode _captureMode = Models.CaptureMode.AppOnly;
+        private Models.CaptureMode _captureMode = Models.CaptureMode.Region;
         private bool _isRecording;
 
         [DllImport("user32.dll")]
