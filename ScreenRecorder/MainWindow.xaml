@@ -208,7 +208,7 @@
                     </Border>
 
                     <!-- 녹화 버튼 (하나로 통합) -->
-                    <Button Grid.Row="4" x:Name="btnRecord" Content="⏺  녹화 시작" 
+                    <Button Grid.Row="4" x:Name="btnRecord" Content="⏺  녹화 시작  (Ctrl+F2)" 
                             Style="{StaticResource RecBtn}" Height="40" Background="#6e2020"
                             IsEnabled="False" Click="BtnRecord_Click"/>
 

@@ -294,7 +294,7 @@ namespace ScreenRecorder
 
                 _isRecording = true;
                 btnRecord.IsEnabled = true;
-                btnRecord.Content = "⏹  녹화 중지";
+                btnRecord.Content = "⏹  녹화 중지  (Ctrl+F2)";
                 btnRecord.Background = new SolidColorBrush(System.Windows.Media.Color.FromRgb(0x21, 0x26, 0x2d));
                 txtStatus.Text = $"녹화 중 — {target.ProcessName} ({modeLabel})";
                 txtIndicator.Text = "● REC";
@@ -373,7 +373,7 @@ namespace ScreenRecorder
         {
             _timer?.Stop(); _timer = null;
             _isRecording = false;
-            btnRecord.Content = "⏺  녹화 시작";
+            btnRecord.Content = "⏺  녹화 시작  (Ctrl+F2)";
             btnRecord.Background = new SolidColorBrush(System.Windows.Media.Color.FromRgb(0x6e, 0x20, 0x20));
             btnRefresh.IsEnabled = true;
             btnMode.IsEnabled = true;
