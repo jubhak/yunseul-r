@@ -251,13 +251,13 @@ namespace ScreenRecorder
             btnMode.IsEnabled = false;
             lstWindows.IsEnabled = false;
 
+            // 녹화 시작 시 미리보기 숨기기 (먼저 처리)
+            _previewVisible = false;
+            ApplyPreviewVisibility();
+
             // 영역 모드에서는 자기 자신이 녹화에 포함되지 않도록 최소화
             if (_captureMode == Models.CaptureMode.Region)
                 WindowState = WindowState.Minimized;
-
-            // 녹화 시작 시 미리보기 숨기기
-            _previewVisible = false;
-            ApplyPreviewVisibility();
 
             var modeLabel = _captureMode == Models.CaptureMode.AppOnly ? "앱 전용" : "영역";
             txtStatus.Text = $"녹화 시작 중... ({target.ProcessName})";
@@ -361,6 +361,10 @@ namespace ScreenRecorder
             txtIndicator.Text = "IDLE";
             txtIndicator.Foreground = (SolidColorBrush)FindResource("Fg2Brush");
             btnRecord.IsEnabled = _selectedWindow != null;
+
+            // 창 상태 복원 (영역 모드에서 최소화했을 수 있음)
+            if (WindowState == WindowState.Minimized)
+                WindowState = WindowState.Normal;
 
             // 미리보기 복원
             _previewVisible = true;
