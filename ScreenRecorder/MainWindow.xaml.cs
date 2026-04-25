@@ -107,6 +107,8 @@ namespace ScreenRecorder
             {
                 panelPreview.Visibility = Visibility.Visible;
                 divider.Visibility = Visibility.Visible;
+                colDivider.Width = new GridLength(6);
+                colPreview.Width = new GridLength(1, GridUnitType.Star);
                 Width = 800;
                 btnPreviewToggle.Content = "👁 미리보기";
             }
@@ -114,6 +116,8 @@ namespace ScreenRecorder
             {
                 panelPreview.Visibility = Visibility.Collapsed;
                 divider.Visibility = Visibility.Collapsed;
+                colDivider.Width = new GridLength(0);
+                colPreview.Width = new GridLength(0);
                 Width = 400;
                 btnPreviewToggle.Content = "👁 미리보기 ▸";
             }
