@@ -38,6 +38,15 @@ namespace ScreenRecorder
         private struct RECT { public int Left, Top, Right, Bottom; }
         private const uint PW_RENDERFULLCONTENT = 2;
 
+        // 글로벌 핫키
+        [DllImport("user32.dll")]
+        private static extern bool RegisterHotKey(IntPtr hWnd, int id, uint fsModifiers, uint vk);
+        [DllImport("user32.dll")]
+        private static extern bool UnregisterHotKey(IntPtr hWnd, int id);
+        private const int HOTKEY_ID = 9001;
+        private const uint MOD_CONTROL = 0x0002;
+        private const uint VK_F2 = 0x71;
+
         public MainWindow()
         {
             InitializeComponent();
@@ -58,6 +67,14 @@ namespace ScreenRecorder
                 txtCropRight.TextChanged += CropInput_TextChanged;
                 txtCropBottom.TextChanged += CropInput_TextChanged;
                 txtCropLeft.TextChanged += CropInput_TextChanged;
+
+                // 글로벌 핫키 등록: Ctrl+F2
+                var hwnd = new System.Windows.Interop.WindowInteropHelper(this).Handle;
+                RegisterHotKey(hwnd, HOTKEY_ID, MOD_CONTROL, VK_F2);
+
+                // WndProc 후킹
+                var source = System.Windows.Interop.HwndSource.FromHwnd(hwnd);
+                source?.AddHook(WndProc);
             };
         }
 
@@ -377,9 +394,27 @@ namespace ScreenRecorder
             RefreshWindowList();
         }
 
+        // ── 글로벌 핫키 (Ctrl+F2) ──
+        private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+        {
+            const int WM_HOTKEY = 0x0312;
+            if (msg == WM_HOTKEY && wParam.ToInt32() == HOTKEY_ID)
+            {
+                // 녹화 버튼 클릭과 동일한 동작
+                if (btnRecord.IsEnabled)
+                    BtnRecord_Click(this, new RoutedEventArgs());
+                handled = true;
+            }
+            return IntPtr.Zero;
+        }
+
         // ── 종료 ──
         protected override async void OnClosing(System.ComponentModel.CancelEventArgs e)
         {
+            // 핫키 해제
+            var hwnd = new System.Windows.Interop.WindowInteropHelper(this).Handle;
+            UnregisterHotKey(hwnd, HOTKEY_ID);
+
             _previewTimer?.Stop();
             SaveCropSettings();
             if (_recordingService?.IsRecording == true)
