@@ -138,7 +138,7 @@ namespace ScreenRecorder.Services
         {
             var e = title.Replace("\"", "\\\"");
             return $"-f gdigrab -framerate 30 -thread_queue_size 4096 -rtbufsize 256M -i title=\"{e}\" " +
-                   $"-use_wallclock_as_timestamps 1 -f {Af(f)} -ar {f.SampleRate} -ac {f.Channels} -thread_queue_size 4096 " +
+                   $"-f {Af(f)} -ar {f.SampleRate} -ac {f.Channels} -thread_queue_size 4096 " +
                    $"-i \"\\\\.\\pipe\\{pipe}\" {Vf(crop)}" +
                    $"-c:v libx264 -preset ultrafast -tune zerolatency -crf 20 -g 30 -keyint_min 30 -sc_threshold 0 -pix_fmt yuv420p " +
                    $"-c:a aac -b:a 192k -threads 0 -movflags +faststart -y \"{o}\"";
@@ -146,7 +146,7 @@ namespace ScreenRecorder.Services
 
         private string BuildRegionAudio(int x, int y, int w, int h, NAudio.Wave.WaveFormat f, string pipe, string o, string crop) =>
             $"-f gdigrab -framerate 30 -thread_queue_size 4096 -rtbufsize 256M -offset_x {x} -offset_y {y} -video_size {w}x{h} -i desktop " +
-            $"-use_wallclock_as_timestamps 1 -f {Af(f)} -ar {f.SampleRate} -ac {f.Channels} -thread_queue_size 4096 " +
+            $"-f {Af(f)} -ar {f.SampleRate} -ac {f.Channels} -thread_queue_size 4096 " +
             $"-i \"\\\\.\\pipe\\{pipe}\" {Vf(crop)}" +
             $"-c:v libx264 -preset ultrafast -tune zerolatency -crf 20 -g 30 -keyint_min 30 -sc_threshold 0 -pix_fmt yuv420p " +
             $"-c:a aac -b:a 192k -threads 0 -movflags +faststart -y \"{o}\"";
