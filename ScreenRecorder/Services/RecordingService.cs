@@ -141,7 +141,7 @@ namespace ScreenRecorder.Services
                    $"-use_wallclock_as_timestamps 1 -f {Af(f)} -ar {f.SampleRate} -ac {f.Channels} -thread_queue_size 4096 " +
                    $"-i \"\\\\.\\pipe\\{pipe}\" {Vf(crop)}" +
                    $"-c:v libx264 -preset ultrafast -tune zerolatency -crf 20 -g 30 -keyint_min 30 -sc_threshold 0 -pix_fmt yuv420p " +
-                   $"-c:a aac -b:a 192k -threads 0 -y \"{o}\"";
+                   $"-c:a aac -b:a 192k -threads 0 -movflags +faststart -y \"{o}\"";
         }
 
         private string BuildRegionAudio(int x, int y, int w, int h, NAudio.Wave.WaveFormat f, string pipe, string o, string crop) =>
@@ -149,15 +149,15 @@ namespace ScreenRecorder.Services
             $"-use_wallclock_as_timestamps 1 -f {Af(f)} -ar {f.SampleRate} -ac {f.Channels} -thread_queue_size 4096 " +
             $"-i \"\\\\.\\pipe\\{pipe}\" {Vf(crop)}" +
             $"-c:v libx264 -preset ultrafast -tune zerolatency -crf 20 -g 30 -keyint_min 30 -sc_threshold 0 -pix_fmt yuv420p " +
-            $"-c:a aac -b:a 192k -threads 0 -y \"{o}\"";
+            $"-c:a aac -b:a 192k -threads 0 -movflags +faststart -y \"{o}\"";
 
         private string BuildTitle(string title, string o, string crop)
         { var e = title.Replace("\"", "\\\""); return $"-f gdigrab -framerate 30 -thread_queue_size 4096 -rtbufsize 256M -i title=\"{e}\" {Vf(crop)}" +
-            $"-c:v libx264 -preset ultrafast -tune zerolatency -crf 20 -g 30 -keyint_min 30 -sc_threshold 0 -pix_fmt yuv420p -threads 0 -y \"{o}\""; }
+            $"-c:v libx264 -preset ultrafast -tune zerolatency -crf 20 -g 30 -keyint_min 30 -sc_threshold 0 -pix_fmt yuv420p -threads 0 -movflags +faststart -y \"{o}\""; }
 
         private string BuildRegion(int x, int y, int w, int h, string o, string crop) =>
             $"-f gdigrab -framerate 30 -thread_queue_size 4096 -rtbufsize 256M -offset_x {x} -offset_y {y} -video_size {w}x{h} -i desktop {Vf(crop)}" +
-            $"-c:v libx264 -preset ultrafast -tune zerolatency -crf 20 -g 30 -keyint_min 30 -sc_threshold 0 -pix_fmt yuv420p -threads 0 -y \"{o}\"";
+            $"-c:v libx264 -preset ultrafast -tune zerolatency -crf 20 -g 30 -keyint_min 30 -sc_threshold 0 -pix_fmt yuv420p -threads 0 -movflags +faststart -y \"{o}\"";
 
         // ── Audio pipe ──
 
@@ -213,47 +213,23 @@ namespace ScreenRecorder.Services
             if (!_isRecording || _ffmpegProcess == null) return;
             try
             {
+                // 1) FFmpeg에 'q' 전송 — FFmpeg가 모든 입력을 정리하고 faststart까지 처리 후 종료
                 progressCallback?.Invoke("녹화 종료 중...");
                 if (!_ffmpegProcess.HasExited)
                     try { _ffmpegProcess.StandardInput.Write("q"); _ffmpegProcess.StandardInput.Flush(); } catch { }
 
-                progressCallback?.Invoke("오디오 종료 중...");
-                StopAudioPipe();
-
+                // 2) FFmpeg 종료 대기 (faststart 재배치 포함)
                 progressCallback?.Invoke("파일 마무리 중...");
-                bool exited = await Task.Run(() => _ffmpegProcess.WaitForExit(60000));
+                bool exited = await Task.Run(() => _ffmpegProcess.WaitForExit(120000));
                 if (!exited) { try { _ffmpegProcess.Kill(); } catch { } await Task.Run(() => _ffmpegProcess.WaitForExit(5000)); }
 
-                // faststart 적용 — moov atom을 파일 앞으로 이동하여 탐색 가능하게
-                if (_outputPath != null && File.Exists(_outputPath) && new FileInfo(_outputPath).Length > 0)
-                {
-                    progressCallback?.Invoke("탐색 최적화 중...");
-                    await ApplyFaststartAsync(_outputPath);
-                }
+                // 3) FFmpeg 종료 후 오디오 파이프 정리
+                StopAudioPipe();
 
                 progressCallback?.Invoke("완료!");
             }
             catch { }
             finally { _isRecording = false; _ffmpegProcess?.Dispose(); _ffmpegProcess = null; }
-        }
-
-        private async Task ApplyFaststartAsync(string filePath)
-        {
-            var ffmpeg = FindFfmpeg(); if (ffmpeg == null) return;
-            var tmp = filePath + ".fs.mp4";
-            try
-            {
-                using var p = new Process { StartInfo = new ProcessStartInfo {
-                    FileName = ffmpeg, Arguments = $"-i \"{filePath}\" -c copy -movflags +faststart -y \"{tmp}\"",
-                    UseShellExecute = false, CreateNoWindow = true, RedirectStandardError = true } };
-                p.Start();
-                bool ok = await Task.Run(() => p.WaitForExit(600000));
-                if (!ok) try { p.Kill(); } catch { }
-                if (File.Exists(tmp) && new FileInfo(tmp).Length > 0)
-                { File.Delete(filePath); File.Move(tmp, filePath); }
-                else { try { if (File.Exists(tmp)) File.Delete(tmp); } catch { } }
-            }
-            catch { try { if (File.Exists(tmp)) File.Delete(tmp); } catch { } }
         }
 
         public void Dispose()
