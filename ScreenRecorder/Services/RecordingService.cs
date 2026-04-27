@@ -166,6 +166,8 @@ namespace ScreenRecorder.Services
             try
             {
                 _ffmpegProcess.Start();
+                // FFmpeg 프로세스도 높은 우선순위로 설정
+                try { _ffmpegProcess.PriorityClass = ProcessPriorityClass.AboveNormal; } catch { }
                 _ffmpegProcess.BeginErrorReadLine();
 
                 await Task.Delay(2000);
@@ -197,23 +199,25 @@ namespace ScreenRecorder.Services
         {
             var escaped = windowTitle.Replace("\"", "\\\"");
             var vf = BuildVfFilter(cropFilter);
-            return $"-f gdigrab -framerate 30 -thread_queue_size 4096 " +
+            return $"-f gdigrab -framerate 30 -thread_queue_size 4096 -rtbufsize 256M " +
                    $"-i title=\"{escaped}\" " +
                    $"{vf}" +
-                   $"-c:v libx264 -preset ultrafast -crf 20 " +
+                   $"-c:v libx264 -preset ultrafast -tune zerolatency -crf 20 " +
                    $"-g 30 -keyint_min 30 -sc_threshold 0 -pix_fmt yuv420p " +
+                   $"-threads 0 " +
                    $"-y \"{outputPath}\"";
         }
 
         private string BuildArgsRegion(int x, int y, int w, int h, string outputPath, string cropFilter)
         {
             var vf = BuildVfFilter(cropFilter);
-            return $"-f gdigrab -framerate 30 -thread_queue_size 4096 " +
+            return $"-f gdigrab -framerate 30 -thread_queue_size 4096 -rtbufsize 256M " +
                    $"-offset_x {x} -offset_y {y} -video_size {w}x{h} " +
                    $"-i desktop " +
                    $"{vf}" +
-                   $"-c:v libx264 -preset ultrafast -crf 20 " +
+                   $"-c:v libx264 -preset ultrafast -tune zerolatency -crf 20 " +
                    $"-g 30 -keyint_min 30 -sc_threshold 0 -pix_fmt yuv420p " +
+                   $"-threads 0 " +
                    $"-y \"{outputPath}\"";
         }
 
